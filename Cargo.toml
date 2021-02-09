@@ -1,0 +1,16 @@
+[package]
+authors = ["Aaron Turon <aturon@fastly.com>"]
+edition = "2018"
+name = "prometheus-utils"
+publish = false
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+lazy_static = "1.4.0"
+pin-project = "1.0.0"
+prometheus = "0.11.0"
+
+[dev-dependencies]
+tokio = {version = "0.2.21", features = ["full"]}
