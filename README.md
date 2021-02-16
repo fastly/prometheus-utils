@@ -10,3 +10,7 @@ A Rust crate adding helpful utilities on top of the `prometheus` crate, includin
 
 - Team: ExecuteD
 - Slack: #executed
+- Engineer: Adam Foltzer
+- Engineer: iximeow
+- Engineer: katie martin
+- Engineer: Aaron Turon
