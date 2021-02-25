@@ -1,6 +1,4 @@
-use super::GuardedGauge;
-#[cfg(test)]
-use lazy_static::lazy_static;
+use super::{GuardedGauge, IntCounterWithLabels, Labels};
 use pin_project::pin_project;
 use prometheus::core::{Atomic, GenericCounter};
 use std::{future, ops::Deref, pin::Pin, task};
@@ -100,6 +98,19 @@ impl<F: future::Future> InstrumentedFuture<F> {
         self
     }
 
+    /// Increment a labeled Prometheus counter when the future is polled.
+    pub fn with_count_labeled<C, L>(mut self, counter: &'static C, labels: L) -> Self
+    where
+        C: Deref<Target = IntCounterWithLabels<L>> + Sync,
+        L: Labels + Sync + Send + 'static,
+    {
+        self.pre_polls.push(Box::new(move || {
+            counter.inc(&labels);
+            None
+        }));
+        self
+    }
+
     /// Increment a Prometheus gauge until this future has resolved.
     ///
     /// When called, this method will immediately increment the given gauge using the
@@ -157,6 +168,7 @@ impl<F: future::Future> future::Future for InstrumentedFuture<F> {
 
 #[test]
 fn counters_increment_only_when_futures_run() {
+    use lazy_static::lazy_static;
     use prometheus::{opts, register_int_counter, register_int_gauge, IntCounter, IntGauge};
     use std::sync::{atomic::AtomicU8, atomic::Ordering, Arc, Mutex};
     lazy_static! {
