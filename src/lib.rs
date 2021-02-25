@@ -24,19 +24,21 @@ macro_rules! __label_enum_internal {
     ($(#[$attr:meta])* ($($vis:tt)*) enum $N:ident { $($(#[$var_attr:meta])* $V:ident),* }) => {
         $(#[$attr])* $($vis)* enum $N { $($(#[$var_attr])* $V),* }
 
-        impl $N {
-            /// The name of this enum variant, as a string slice.
-            pub fn as_str(&self) -> &'static str {
-                match self {
-                    $($N::$V => stringify!($V)),*
+            paste::paste! {
+                impl $N {
+                    /// The name of this enum variant, as a string slice.
+                    pub fn as_str(&self) -> &'static str {
+                        match self {
+                            $($N::$V => stringify!([<$V:snake>])),*
+                        }
+                    }
+
+                    /// A vector containing one instance of each of the enum's variants.
+                    pub fn all_variants() -> Vec<Self> {
+                        vec![$($N::$V),*]
+                    }
                 }
             }
-
-            /// A vector containing one instance of each of the enum's variants.
-            pub fn all_variants() -> Vec<Self> {
-                vec![$($N::$V),*]
-            }
-        }
     };
 }
 
@@ -61,7 +63,7 @@ macro_rules! __label_enum_internal {
 ///         IoError,
 ///         TimeoutError,
 ///         MemoryError,
-///     }   
+///     }
 /// }
 /// ```
 ///
