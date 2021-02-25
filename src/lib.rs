@@ -61,7 +61,7 @@ macro_rules! __label_enum_internal {
 ///         IoError,
 ///         TimeoutError,
 ///         MemoryError,
-///     }   
+///     }
 /// }
 /// ```
 ///
