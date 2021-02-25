@@ -8,6 +8,20 @@
 //! * Use [`IntCounterWithLabels`] and [`IntGaugeWithLabels`] to produce labeled Prometheus
 //!   metrics with a type-safe API.
 
+// When building the project in release mode:
+//   (1): Promote warnings into errors.
+//   (2): Warn about public items that are missing documentation.
+//   (3): Deny broken documentation links.
+//   (4): Deny invalid codeblock attributes in documentation.
+//   (5): Promote warnings in examples into errors, except for unused variables.
+#![cfg_attr(not(debug_assertions), deny(warnings))]
+#![cfg_attr(not(debug_assertions), warn(missing_docs))]
+#![cfg_attr(not(debug_assertions), deny(broken_intra_doc_links))]
+#![cfg_attr(not(debug_assertions), deny(invalid_codeblock_attributes))]
+#![cfg_attr(not(debug_assertions), doc(test(attr(deny(warnings)))))]
+#![cfg_attr(not(debug_assertions), doc(test(attr(allow(dead_code)))))]
+#![cfg_attr(not(debug_assertions), doc(test(attr(allow(unused_variables)))))]
+
 mod gauge_guard;
 mod instrumented_future;
 mod labels;
