@@ -1,7 +1,14 @@
-use prometheus::core::{Atomic, GenericGauge, Number};
+use prometheus::core::{Atomic, AtomicF64, AtomicI64, GenericGauge, Number};
 
-pub type IntGaugeGuard = GenericGaugeGuard<prometheus::core::AtomicI64>;
-pub type GaugeGuard = GenericGaugeGuard<prometheus::core::AtomicF64>;
+/// An RAII-style guard for an [`AtomicI64`] gauge.
+///
+/// Created by the methods on the [`GuardedGauge`] extension trait.
+pub type IntGaugeGuard = GenericGaugeGuard<AtomicI64>;
+
+/// An RAII-style guard for an [`AtomicF64`] gauge.
+///
+/// Created by the methods on the [`GuardedGauge`] extension trait.
+pub type GaugeGuard = GenericGaugeGuard<AtomicF64>;
 
 /// An RAII-style guard for situations where we want to increment a gauge and then ensure that there
 /// is always a corresponding decrement.

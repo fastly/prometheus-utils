@@ -59,13 +59,13 @@ pub struct InstrumentedFuture<F: future::Future> {
     resource_guards: Vec<Box<dyn Drop + Send>>,
 }
 
-/// Convert a future into an instrumented future.
+/// Convert a [`Future`][future::Future] into an instrumented future.
 ///
-/// See the [`InstrumentedFuture`][instr-fut] documentation for more information.
-///
-/// [instr-fut]: struct.InstrumentedFuture.html
+/// See the [`InstrumentedFuture`] documentation for more information.
 pub trait IntoInstrumentedFuture {
+    /// The underlying  to be instrumented.
     type Future: future::Future;
+    /// Convert this future into an [`InstrumentedFuture`].
     fn into_instrumented_future(self) -> InstrumentedFuture<Self::Future>;
 }
 
