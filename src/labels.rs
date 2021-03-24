@@ -1,3 +1,4 @@
+use crate::guards::DeferredInc;
 use prometheus::{register_int_counter_vec, register_int_gauge_vec, IntCounterVec, IntGaugeVec};
 use std::marker::PhantomData;
 
@@ -87,40 +88,7 @@ impl<L: Labels> IntCounterWithLabels<L> {
     /// Prior to dropping, the labels can be altered using [`DeferredInc::with_labels`].
     #[must_use]
     pub fn deferred_inc<'a>(&'a self, labels: &'a L) -> DeferredInc<'a, L> {
-        DeferredInc {
-            metric: self,
-            labels,
-        }
-    }
-}
-
-/// A guard that will automatically increment a labeled metric when dropped.
-pub struct DeferredInc<'a, L: Labels> {
-    metric: &'a IntCounterWithLabels<L>,
-    labels: &'a L,
-}
-
-impl<'a, L: Labels> Drop for DeferredInc<'a, L> {
-    fn drop(&mut self) {
-        self.metric.inc(&self.labels)
-    }
-}
-
-impl<'a, L: Labels> DeferredInc<'a, L> {
-    /// Update the labels to use when incrementing the metric.
-    pub fn with_labels<'new_labels>(self, new_labels: &'new_labels L) -> DeferredInc<'new_labels, L>
-    where
-        'a: 'new_labels,
-    {
-        DeferredInc {
-            metric: self.metric,
-            labels: new_labels,
-        }
-    }
-
-    /// Eagerly perform the increment consume the guard.
-    pub fn inc(self) {
-        drop(self)
+        DeferredInc::new(self, labels)
     }
 }
 

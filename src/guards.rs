@@ -1,3 +1,4 @@
+use crate::{IntCounterWithLabels, Labels};
 use prometheus::core::{Atomic, AtomicF64, AtomicI64, GenericGauge, Number};
 
 /// An RAII-style guard for an [`AtomicI64`] gauge.
@@ -52,5 +53,43 @@ impl<P: Atomic + 'static> GuardedGauge<P> for GenericGauge<P> {
             value: v,
             gauge: self,
         }
+    }
+}
+
+/// A guard that will automatically increment a labeled metric when dropped.
+pub struct DeferredInc<'a, L: Labels> {
+    metric: &'a IntCounterWithLabels<L>,
+    labels: &'a L,
+}
+
+impl<'a, L: Labels> Drop for DeferredInc<'a, L> {
+    fn drop(&mut self) {
+        self.metric.inc(&self.labels)
+    }
+}
+
+impl<'a, L: Labels> DeferredInc<'a, L> {
+    /// Create a new deferred increment guard.
+    //
+    // This is not exposed in the public interface, these should only be acquired through
+    // `deferred_inc`.
+    pub(crate) fn new(metric: &'a IntCounterWithLabels<L>, labels: &'a L) -> Self {
+        Self { metric, labels }
+    }
+
+    /// Update the labels to use when incrementing the metric.
+    pub fn with_labels<'new_labels>(self, new_labels: &'new_labels L) -> DeferredInc<'new_labels, L>
+    where
+        'a: 'new_labels,
+    {
+        DeferredInc {
+            metric: self.metric,
+            labels: new_labels,
+        }
+    }
+
+    /// Eagerly perform the increment consume the guard.
+    pub fn inc(self) {
+        drop(self)
     }
 }
