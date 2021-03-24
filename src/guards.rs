@@ -101,7 +101,7 @@ impl<'a, L: Labels> DeferredAddWithLabels<'a, L> {
     }
 
     /// Eagerly perform the increment, consuming the guard.
-    pub fn inc(self) {
+    pub fn complete_add(self) {
         drop(self)
     }
 }
@@ -116,7 +116,7 @@ pub struct DeferredAdd<P: Atomic + 'static> {
 
 impl<P: Atomic + 'static> DeferredAdd<P> {
     /// Eagerly perform the increment, consuming the guard.
-    pub fn inc(self) {
+    pub fn complete_add(self) {
         drop(self)
     }
 }
