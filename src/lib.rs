@@ -22,11 +22,11 @@
 #![cfg_attr(not(debug_assertions), doc(test(attr(allow(dead_code)))))]
 #![cfg_attr(not(debug_assertions), doc(test(attr(allow(unused_variables)))))]
 
-mod gauge_guard;
+mod guards;
 mod instrumented_future;
 mod labels;
 
-pub use gauge_guard::{GaugeGuard, GenericGaugeGuard, GuardedGauge, IntGaugeGuard};
+pub use guards::{GaugeGuard, GenericGaugeGuard, GuardedGauge, IntGaugeGuard};
 pub use instrumented_future::{InstrumentedFuture, IntoInstrumentedFuture};
 pub use labels::{IntCounterWithLabels, IntGaugeWithLabels, LabelValues, Labels};
 
