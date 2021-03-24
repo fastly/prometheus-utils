@@ -1,5 +1,5 @@
 use crate::{IntCounterWithLabels, Labels};
-use prometheus::core::{Atomic, AtomicF64, AtomicI64, GenericGauge, Number};
+use prometheus::core::{Atomic, AtomicF64, AtomicI64, GenericCounter, GenericGauge, Number};
 
 /// An RAII-style guard for an [`AtomicI64`] gauge.
 ///
@@ -94,5 +94,39 @@ impl<'a, L: Labels> DeferredIncWithLabels<'a, L> {
     /// Eagerly perform the increment consume the guard.
     pub fn inc(self) {
         drop(self)
+    }
+}
+
+/// A guard that will automatically increment a [`GenericCounter`] when dropped.
+pub struct DeferredInc<P: Atomic + 'static> {
+    value: P::T,
+    metric: &'static GenericCounter<P>,
+}
+
+/// When dropped, a `DeferredInc` guard will increment its counter.
+impl<P: Atomic + 'static> Drop for DeferredInc<P> {
+    fn drop(&mut self) {
+        self.metric.inc_by(self.value);
+    }
+}
+
+/// An extension trait for [`prometheus::GenericCounter`] to provide methods for incrementing a
+/// counter after an RAII-style guard has been dropped.
+pub trait DeferredCounter<P: Atomic + 'static> {
+    #[must_use]
+    fn deferred_inc(&'static self) -> DeferredInc<P> {
+        self.deferred_add(<P::T as Number>::from_i64(1))
+    }
+
+    #[must_use]
+    fn deferred_add(&'static self, v: P::T) -> DeferredInc<P>;
+}
+
+impl<P: Atomic + 'static> DeferredCounter<P> for GenericCounter<P> {
+    fn deferred_add(&'static self, v: P::T) -> DeferredInc<P> {
+        DeferredInc {
+            value: v,
+            metric: self,
+        }
     }
 }
