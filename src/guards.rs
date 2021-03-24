@@ -60,38 +60,43 @@ impl<P: Atomic + 'static> GuardedGauge<P> for GenericGauge<P> {
 /// A guard that will automatically increment a labeled metric when dropped.
 ///
 /// Created by calling [`IntCounterWithLabels::deferred_inc`].
-pub struct DeferredIncWithLabels<'a, L: Labels> {
+pub struct DeferredAddWithLabels<'a, L: Labels> {
+    value: u64,
     metric: &'a IntCounterWithLabels<L>,
     labels: &'a L,
 }
 
-/// When dropped, a [`DeferredIncWithLabels`] guard will increment its counter.
-impl<'a, L: Labels> Drop for DeferredIncWithLabels<'a, L> {
+/// When dropped, a [`DeferredAddWithLabels`] guard will increment its counter.
+impl<'a, L: Labels> Drop for DeferredAddWithLabels<'a, L> {
     fn drop(&mut self) {
-        self.metric.inc(&self.labels)
+        self.metric.add(self.value, &self.labels)
     }
 }
 
-impl<'a, L: Labels> DeferredIncWithLabels<'a, L> {
+impl<'a, L: Labels> DeferredAddWithLabels<'a, L> {
     /// Create a new deferred increment guard.
     //
     // This is not exposed in the public interface, these should only be acquired through
     // `deferred_inc`.
-    pub(crate) fn new(metric: &'a IntCounterWithLabels<L>, labels: &'a L) -> Self {
-        Self { metric, labels }
+    pub(crate) fn new(metric: &'a IntCounterWithLabels<L>, value: u64, labels: &'a L) -> Self {
+        Self {
+            value,
+            metric,
+            labels,
+        }
     }
 
     /// Update the labels to use when incrementing the metric.
     pub fn with_labels<'new_labels>(
         self,
         new_labels: &'new_labels L,
-    ) -> DeferredIncWithLabels<'new_labels, L>
+    ) -> DeferredAddWithLabels<'new_labels, L>
     where
         'a: 'new_labels,
     {
-        DeferredIncWithLabels {
-            metric: self.metric,
+        DeferredAddWithLabels {
             labels: new_labels,
+            ..self
         }
     }
 

@@ -1,4 +1,4 @@
-use crate::guards::DeferredIncWithLabels;
+use crate::guards::DeferredAddWithLabels;
 use prometheus::{register_int_counter_vec, register_int_gauge_vec, IntCounterVec, IntGaugeVec};
 use std::marker::PhantomData;
 
@@ -78,17 +78,32 @@ impl<L: Labels> IntCounterWithLabels<L> {
         }
     }
 
-    /// Increment the metric using the provided `labels` for the event.
+    /// Increment the metric by `1`, using the provided `labels` for the event.
     pub fn inc(&self, labels: &L) {
         self.metric.with_label_values(&labels.label_values()).inc();
     }
 
-    /// Creates a guard value that will increment the metric using the provided `labels` once dropped.
+    /// Increment the metric by `v`, using the provided `labels` for the event.
+    pub fn add(&self, v: u64, labels: &L) {
+        self.metric
+            .with_label_values(&labels.label_values())
+            .inc_by(v);
+    }
+
+    /// Creates a guard value that will increment the metric by `1` using the provided `labels` once dropped.
     ///
     /// Prior to dropping, the labels can be altered using [`DeferredIncWithLabels::with_labels`].
     #[must_use]
-    pub fn deferred_inc<'a>(&'a self, labels: &'a L) -> DeferredIncWithLabels<'a, L> {
-        DeferredIncWithLabels::new(self, labels)
+    pub fn deferred_inc<'a>(&'a self, labels: &'a L) -> DeferredAddWithLabels<'a, L> {
+        DeferredAddWithLabels::new(self, 1, labels)
+    }
+
+    /// Creates a guard value that will increment the metric by `v` using the provided `labels` once dropped.
+    ///
+    /// Prior to dropping, the labels can be altered using [`DeferredIncWithLabels::with_labels`].
+    #[must_use]
+    pub fn deferred_add<'a>(&'a self, v: u64, labels: &'a L) -> DeferredAddWithLabels<'a, L> {
+        DeferredAddWithLabels::new(self, v, labels)
     }
 }
 
