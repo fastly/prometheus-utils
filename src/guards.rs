@@ -14,20 +14,21 @@ pub type GaugeGuard = GenericGaugeGuard<AtomicF64>;
 /// An RAII-style guard for situations where we want to increment a gauge and then ensure that there
 /// is always a corresponding decrement.
 ///
-/// Created by the methods on the `GuardedGauge` extension trait.
+/// Created by the methods on the [`GuardedGauge`] extension trait.
 pub struct GenericGaugeGuard<P: Atomic + 'static> {
     value: P::T,
     gauge: &'static GenericGauge<P>,
 }
 
+/// When a gauge guard is dropped, it will perform the corresponding decrement.
 impl<P: Atomic + 'static> Drop for GenericGaugeGuard<P> {
     fn drop(&mut self) {
         self.gauge.sub(self.value);
     }
 }
 
-/// An extension trait for `prometheus::GenericGauge` to provide methods for temporarily modifying a
-/// gauge.
+/// An extension trait for [`prometheus::GenericGauge`] to provide methods for temporarily
+/// modifying a gauge.
 pub trait GuardedGauge<P: Atomic + 'static> {
     /// Increase the gauge by 1 while the guard exists.
     #[must_use]
@@ -57,11 +58,14 @@ impl<P: Atomic + 'static> GuardedGauge<P> for GenericGauge<P> {
 }
 
 /// A guard that will automatically increment a labeled metric when dropped.
+///
+/// Created by calling [`IntCounterWithLabels::deferred_inc`].
 pub struct DeferredIncWithLabels<'a, L: Labels> {
     metric: &'a IntCounterWithLabels<L>,
     labels: &'a L,
 }
 
+/// When dropped, a [`DeferredIncWithLabels`] guard will increment its counter.
 impl<'a, L: Labels> Drop for DeferredIncWithLabels<'a, L> {
     fn drop(&mut self) {
         self.metric.inc(&self.labels)
@@ -98,12 +102,14 @@ impl<'a, L: Labels> DeferredIncWithLabels<'a, L> {
 }
 
 /// A guard that will automatically increment a [`GenericCounter`] when dropped.
+///
+/// Created by the methods on the [`DeferredCounter`] extension trait.
 pub struct DeferredInc<P: Atomic + 'static> {
     value: P::T,
     metric: &'static GenericCounter<P>,
 }
 
-/// When dropped, a `DeferredInc` guard will increment its counter.
+/// When dropped, a [`DeferredInc`] guard will increment its counter.
 impl<P: Atomic + 'static> Drop for DeferredInc<P> {
     fn drop(&mut self) {
         self.metric.inc_by(self.value);
@@ -113,11 +119,13 @@ impl<P: Atomic + 'static> Drop for DeferredInc<P> {
 /// An extension trait for [`prometheus::GenericCounter`] to provide methods for incrementing a
 /// counter after an RAII-style guard has been dropped.
 pub trait DeferredCounter<P: Atomic + 'static> {
+    /// Increase the counter by `1` when the guard is dropped.
     #[must_use]
     fn deferred_inc(&'static self) -> DeferredInc<P> {
         self.deferred_add(<P::T as Number>::from_i64(1))
     }
 
+    /// Increase the counter by `v` when the guard is dropped.
     #[must_use]
     fn deferred_add(&'static self, v: P::T) -> DeferredInc<P>;
 }
