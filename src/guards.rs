@@ -104,13 +104,13 @@ impl<'a, L: Labels> DeferredIncWithLabels<'a, L> {
 /// A guard that will automatically increment a [`GenericCounter`] when dropped.
 ///
 /// Created by the methods on the [`DeferredCounter`] extension trait.
-pub struct DeferredInc<P: Atomic + 'static> {
+pub struct DeferredAdd<P: Atomic + 'static> {
     value: P::T,
     metric: &'static GenericCounter<P>,
 }
 
-/// When dropped, a [`DeferredInc`] guard will increment its counter.
-impl<P: Atomic + 'static> Drop for DeferredInc<P> {
+/// When dropped, a [`DeferredAdd`] guard will increment its counter.
+impl<P: Atomic + 'static> Drop for DeferredAdd<P> {
     fn drop(&mut self) {
         self.metric.inc_by(self.value);
     }
@@ -121,18 +121,18 @@ impl<P: Atomic + 'static> Drop for DeferredInc<P> {
 pub trait DeferredCounter<P: Atomic + 'static> {
     /// Increase the counter by `1` when the guard is dropped.
     #[must_use]
-    fn deferred_inc(&'static self) -> DeferredInc<P> {
+    fn deferred_inc(&'static self) -> DeferredAdd<P> {
         self.deferred_add(<P::T as Number>::from_i64(1))
     }
 
     /// Increase the counter by `v` when the guard is dropped.
     #[must_use]
-    fn deferred_add(&'static self, v: P::T) -> DeferredInc<P>;
+    fn deferred_add(&'static self, v: P::T) -> DeferredAdd<P>;
 }
 
 impl<P: Atomic + 'static> DeferredCounter<P> for GenericCounter<P> {
-    fn deferred_add(&'static self, v: P::T) -> DeferredInc<P> {
-        DeferredInc {
+    fn deferred_add(&'static self, v: P::T) -> DeferredAdd<P> {
+        DeferredAdd {
             value: v,
             metric: self,
         }

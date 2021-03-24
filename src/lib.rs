@@ -27,7 +27,7 @@ mod instrumented_future;
 mod labels;
 
 pub use guards::{
-    DeferredCounter, DeferredInc, DeferredIncWithLabels, GaugeGuard, GenericGaugeGuard,
+    DeferredAdd, DeferredCounter, DeferredIncWithLabels, GaugeGuard, GenericGaugeGuard,
     GuardedGauge, IntGaugeGuard,
 };
 pub use instrumented_future::{InstrumentedFuture, IntoInstrumentedFuture};
