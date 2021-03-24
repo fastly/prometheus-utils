@@ -95,7 +95,7 @@ impl<'a, L: Labels> DeferredIncWithLabels<'a, L> {
         }
     }
 
-    /// Eagerly perform the increment consume the guard.
+    /// Eagerly perform the increment, consuming the guard.
     pub fn inc(self) {
         drop(self)
     }
@@ -107,6 +107,13 @@ impl<'a, L: Labels> DeferredIncWithLabels<'a, L> {
 pub struct DeferredAdd<P: Atomic + 'static> {
     value: P::T,
     metric: &'static GenericCounter<P>,
+}
+
+impl<P: Atomic + 'static> DeferredAdd<P> {
+    /// Eagerly perform the increment, consuming the guard.
+    pub fn inc(self) {
+        drop(self)
+    }
 }
 
 /// When dropped, a [`DeferredAdd`] guard will increment its counter.
