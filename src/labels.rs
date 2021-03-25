@@ -1,3 +1,4 @@
+use crate::guards::DeferredAddWithLabels;
 use prometheus::{register_int_counter_vec, register_int_gauge_vec, IntCounterVec, IntGaugeVec};
 use std::marker::PhantomData;
 
@@ -77,50 +78,32 @@ impl<L: Labels> IntCounterWithLabels<L> {
         }
     }
 
-    /// Increment the metric using the provided `labels` for the event.
+    /// Increment the metric by `1`, using the provided `labels` for the event.
     pub fn inc(&self, labels: &L) {
         self.metric.with_label_values(&labels.label_values()).inc();
     }
 
-    /// Creates a guard value that will increment the metric using the provided `labels` once dropped.
+    /// Increment the metric by `v`, using the provided `labels` for the event.
+    pub fn add(&self, v: u64, labels: &L) {
+        self.metric
+            .with_label_values(&labels.label_values())
+            .inc_by(v);
+    }
+
+    /// Creates a guard value that will increment the metric by `1` using the provided `labels` once dropped.
     ///
-    /// Prior to dropping, the labels can be altered using [`DeferredInc::with_labels`].
+    /// Prior to dropping, the labels can be altered using [`DeferredIncWithLabels::with_labels`].
     #[must_use]
-    pub fn deferred_inc<'a>(&'a self, labels: &'a L) -> DeferredInc<'a, L> {
-        DeferredInc {
-            metric: self,
-            labels,
-        }
-    }
-}
-
-/// A guard that will automatically increment a labeled metric when dropped.
-pub struct DeferredInc<'a, L: Labels> {
-    metric: &'a IntCounterWithLabels<L>,
-    labels: &'a L,
-}
-
-impl<'a, L: Labels> Drop for DeferredInc<'a, L> {
-    fn drop(&mut self) {
-        self.metric.inc(&self.labels)
-    }
-}
-
-impl<'a, L: Labels> DeferredInc<'a, L> {
-    /// Update the labels to use when incrementing the metric.
-    pub fn with_labels<'new_labels>(self, new_labels: &'new_labels L) -> DeferredInc<'new_labels, L>
-    where
-        'a: 'new_labels,
-    {
-        DeferredInc {
-            metric: self.metric,
-            labels: new_labels,
-        }
+    pub fn deferred_inc<'a>(&'a self, labels: &'a L) -> DeferredAddWithLabels<'a, L> {
+        DeferredAddWithLabels::new(self, 1, labels)
     }
 
-    /// Eagerly perform the increment consume the guard.
-    pub fn inc(self) {
-        drop(self)
+    /// Creates a guard value that will increment the metric by `v` using the provided `labels` once dropped.
+    ///
+    /// Prior to dropping, the labels can be altered using [`DeferredIncWithLabels::with_labels`].
+    #[must_use]
+    pub fn deferred_add<'a>(&'a self, v: u64, labels: &'a L) -> DeferredAddWithLabels<'a, L> {
+        DeferredAddWithLabels::new(self, v, labels)
     }
 }
 
