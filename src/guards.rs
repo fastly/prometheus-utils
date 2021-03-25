@@ -62,7 +62,7 @@ impl<P: Atomic + 'static> GuardedGauge<P> for GenericGauge<P> {
 pub struct DeferredAddWithLabels<'a, L: Labels> {
     value: u64,
     metric: &'a IntCounterWithLabels<L>,
-    labels: &'a L,
+    labels: L,
 }
 
 /// When dropped, a [`DeferredAddWithLabels`] guard will increment its counter.
@@ -77,7 +77,7 @@ impl<'a, L: Labels> DeferredAddWithLabels<'a, L> {
     //
     // This is not exposed in the public interface, these should only be acquired through
     // `deferred_inc`.
-    pub(crate) fn new(metric: &'a IntCounterWithLabels<L>, value: u64, labels: &'a L) -> Self {
+    pub(crate) fn new(metric: &'a IntCounterWithLabels<L>, value: u64, labels: L) -> Self {
         Self {
             value,
             metric,
@@ -86,10 +86,7 @@ impl<'a, L: Labels> DeferredAddWithLabels<'a, L> {
     }
 
     /// Update the labels to use when incrementing the metric.
-    pub fn with_labels<'new_labels>(
-        self,
-        new_labels: &'new_labels L,
-    ) -> DeferredAddWithLabels<'new_labels, L>
+    pub fn with_labels<'new_labels>(self, new_labels: L) -> DeferredAddWithLabels<'new_labels, L>
     where
         'a: 'new_labels,
     {

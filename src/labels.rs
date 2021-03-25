@@ -95,7 +95,7 @@ impl<L: Labels> IntCounterWithLabels<L> {
     ///
     /// Prior to dropping, the labels can be altered using [`DeferredAddWithLabels::with_labels`].
     #[must_use]
-    pub fn deferred_inc<'a>(&'a self, labels: &'a L) -> DeferredAddWithLabels<'a, L> {
+    pub fn deferred_inc<'a>(&'a self, labels: L) -> DeferredAddWithLabels<'a, L> {
         DeferredAddWithLabels::new(self, 1, labels)
     }
 
@@ -104,7 +104,7 @@ impl<L: Labels> IntCounterWithLabels<L> {
     ///
     /// Prior to dropping, the labels can be altered using [`DeferredAddWithLabels::with_labels`].
     #[must_use]
-    pub fn deferred_add<'a>(&'a self, v: u64, labels: &'a L) -> DeferredAddWithLabels<'a, L> {
+    pub fn deferred_add<'a>(&'a self, v: u64, labels: L) -> DeferredAddWithLabels<'a, L> {
         DeferredAddWithLabels::new(self, v, labels)
     }
 }
