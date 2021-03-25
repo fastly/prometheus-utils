@@ -27,8 +27,7 @@ impl<P: Atomic + 'static> Drop for GenericGaugeGuard<P> {
     }
 }
 
-/// An extension trait for [`prometheus::GenericGauge`] to provide methods for temporarily
-/// modifying a gauge.
+/// An extension trait for [`GenericGauge`] to provide methods for temporarily modifying a gauge.
 pub trait GuardedGauge<P: Atomic + 'static> {
     /// Increase the gauge by 1 while the guard exists.
     #[must_use]
@@ -128,8 +127,8 @@ impl<P: Atomic + 'static> Drop for DeferredAdd<P> {
     }
 }
 
-/// An extension trait for [`prometheus::GenericCounter`] to provide methods for incrementing a
-/// counter after an RAII-style guard has been dropped.
+/// An extension trait for [`GenericCounter`] to provide methods for incrementing a counter once
+/// an RAII-style guard has been dropped.
 pub trait DeferredCounter<P: Atomic + 'static> {
     /// Increase the counter by `1` when the guard is dropped.
     #[must_use]

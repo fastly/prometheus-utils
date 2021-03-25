@@ -90,17 +90,19 @@ impl<L: Labels> IntCounterWithLabels<L> {
             .inc_by(v);
     }
 
-    /// Creates a guard value that will increment the metric by `1` using the provided `labels` once dropped.
+    /// Creates a guard value that will increment the metric by `1`, using the provided `labels`,
+    /// once dropped.
     ///
-    /// Prior to dropping, the labels can be altered using [`DeferredIncWithLabels::with_labels`].
+    /// Prior to dropping, the labels can be altered using [`DeferredAddWithLabels::with_labels`].
     #[must_use]
     pub fn deferred_inc<'a>(&'a self, labels: &'a L) -> DeferredAddWithLabels<'a, L> {
         DeferredAddWithLabels::new(self, 1, labels)
     }
 
-    /// Creates a guard value that will increment the metric by `v` using the provided `labels` once dropped.
+    /// Creates a guard value that will increment the metric by `v`, using the provided `labels`,
+    /// once dropped.
     ///
-    /// Prior to dropping, the labels can be altered using [`DeferredIncWithLabels::with_labels`].
+    /// Prior to dropping, the labels can be altered using [`DeferredAddWithLabels::with_labels`].
     #[must_use]
     pub fn deferred_add<'a>(&'a self, v: u64, labels: &'a L) -> DeferredAddWithLabels<'a, L> {
         DeferredAddWithLabels::new(self, v, labels)
