@@ -27,8 +27,7 @@ impl<P: Atomic + 'static> Drop for GenericGaugeGuard<P> {
     }
 }
 
-/// An extension trait for [`prometheus::GenericGauge`] to provide methods for temporarily
-/// modifying a gauge.
+/// An extension trait for [`GenericGauge`] to provide methods for temporarily modifying a gauge.
 pub trait GuardedGauge<P: Atomic + 'static> {
     /// Increase the gauge by 1 while the guard exists.
     #[must_use]
@@ -63,7 +62,7 @@ impl<P: Atomic + 'static> GuardedGauge<P> for GenericGauge<P> {
 pub struct DeferredAddWithLabels<'a, L: Labels> {
     value: u64,
     metric: &'a IntCounterWithLabels<L>,
-    labels: &'a L,
+    labels: L,
 }
 
 /// When dropped, a [`DeferredAddWithLabels`] guard will increment its counter.
@@ -78,7 +77,7 @@ impl<'a, L: Labels> DeferredAddWithLabels<'a, L> {
     //
     // This is not exposed in the public interface, these should only be acquired through
     // `deferred_inc`.
-    pub(crate) fn new(metric: &'a IntCounterWithLabels<L>, value: u64, labels: &'a L) -> Self {
+    pub(crate) fn new(metric: &'a IntCounterWithLabels<L>, value: u64, labels: L) -> Self {
         Self {
             value,
             metric,
@@ -87,10 +86,7 @@ impl<'a, L: Labels> DeferredAddWithLabels<'a, L> {
     }
 
     /// Update the labels to use when incrementing the metric.
-    pub fn with_labels<'new_labels>(
-        self,
-        new_labels: &'new_labels L,
-    ) -> DeferredAddWithLabels<'new_labels, L>
+    pub fn with_labels<'new_labels>(self, new_labels: L) -> DeferredAddWithLabels<'new_labels, L>
     where
         'a: 'new_labels,
     {
@@ -109,12 +105,12 @@ impl<'a, L: Labels> DeferredAddWithLabels<'a, L> {
 /// A guard that will automatically increment a [`GenericCounter`] when dropped.
 ///
 /// Created by the methods on the [`DeferredCounter`] extension trait.
-pub struct DeferredAdd<P: Atomic + 'static> {
+pub struct DeferredAdd<'a, P: Atomic> {
     value: P::T,
-    metric: &'static GenericCounter<P>,
+    metric: &'a GenericCounter<P>,
 }
 
-impl<P: Atomic + 'static> DeferredAdd<P> {
+impl<'a, P: Atomic> DeferredAdd<'a, P> {
     /// Eagerly perform the increment, consuming the guard.
     pub fn complete_add(self) {
         drop(self)
@@ -122,14 +118,14 @@ impl<P: Atomic + 'static> DeferredAdd<P> {
 }
 
 /// When dropped, a [`DeferredAdd`] guard will increment its counter.
-impl<P: Atomic + 'static> Drop for DeferredAdd<P> {
+impl<'a, P: Atomic> Drop for DeferredAdd<'a, P> {
     fn drop(&mut self) {
         self.metric.inc_by(self.value);
     }
 }
 
-/// An extension trait for [`prometheus::GenericCounter`] to provide methods for incrementing a
-/// counter after an RAII-style guard has been dropped.
+/// An extension trait for [`GenericCounter`] to provide methods for incrementing a counter once
+/// an RAII-style guard has been dropped.
 pub trait DeferredCounter<P: Atomic + 'static> {
     /// Increase the counter by `1` when the guard is dropped.
     #[must_use]

@@ -3,7 +3,7 @@ authors = ["Fastly <slack #executed>"]
 edition = "2018"
 name = "prometheus-utils"
 publish = false
-version = "0.2.0"
+version = "0.3.0"
 
 [dependencies]
 lazy_static = "1.4.0"
