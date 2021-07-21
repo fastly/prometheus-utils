@@ -2,9 +2,10 @@
 authors = ["Fastly"]
 edition = "2018"
 name = "prometheus-utils"
-version = "0.5.0"
+version = "0.5.1"
 license = "Apache-2.0 WITH LLVM-exception"
 description = "Utilities built on top of the prometheus crate"
+repository = "https://github.com/fastly/prometheus-utils"
 
 [dependencies]
 lazy_static = "1.4.0"
@@ -12,7 +13,7 @@ paste = "^1.0.4"
 pin-project = "1.0.0"
 prometheus = "0.12.0"
 num-traits = "0.2"
-parking_lot = "0.10"
+parking_lot = "^0.11.1"
 
 [dev-dependencies]
 tokio = { version = "0.2.21", features = ["full"] }
