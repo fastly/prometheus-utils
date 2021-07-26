@@ -203,8 +203,7 @@ fn counters_increment_only_when_futures_run() {
     assert_eq!(WORK_COUNTER.get(), 0);
     assert_eq!(WORK_GAUGE.get(), 0);
 
-    let mut rt = tokio::runtime::Builder::new()
-        .threaded_scheduler()
+    let rt = tokio::runtime::Builder::new_multi_thread()
         .build()
         .expect("can build runtime");
     let handle = rt.spawn(f);
