@@ -1,7 +1,7 @@
 use super::{GuardedGauge, IntCounterWithLabels, Labels};
 use pin_project::pin_project;
 use prometheus::core::{Atomic, GenericCounter};
-use std::{future, ops::Deref, pin::Pin, task};
+use std::{future, marker::Unpin, ops::Deref, pin::Pin, task};
 
 /// An instrumented [`Future`][std-future].
 ///
@@ -17,9 +17,26 @@ use std::{future, ops::Deref, pin::Pin, task};
 /// [incr-until]: struct.InstrumentedFuture.html#method.increment_until_resolved
 /// [into-fut]: trait.IntoInstrumentedFuture.html#tymethod.into_instrumented_future
 /// [std-future]: https://doc.rust-lang.org/std/future/trait.Future.html
+///
+/// # Examples
+///
+/// ```no_run
+/// use prometheus_utils::IntoInstrumentedFuture;
+/// use tokio::time::{sleep, Duration};
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let fut = sleep(Duration::from_millis(100));
+///     let instrumented = Box::pin(fut).into_instrumented_future();
+///     let _res = instrumented.await;
+/// }
+/// ```
 #[pin_project]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct InstrumentedFuture<F: future::Future> {
+pub struct InstrumentedFuture<F>
+where
+    F: future::Future + Unpin,
+{
     /// The inner [`Future`][std-future].
     ///
     /// ## Structural Pinning
@@ -60,14 +77,19 @@ pub struct InstrumentedFuture<F: future::Future> {
 /// Convert a [`Future`][future::Future] into an instrumented future.
 ///
 /// See the [`InstrumentedFuture`] documentation for more information.
+///
+/// Note that a future must be pinned before it can be instrumented.
 pub trait IntoInstrumentedFuture {
     /// The underlying  to be instrumented.
-    type Future: future::Future;
+    type Future: future::Future + Unpin;
     /// Convert this future into an [`InstrumentedFuture`].
     fn into_instrumented_future(self) -> InstrumentedFuture<Self::Future>;
 }
 
-impl<F: future::Future> IntoInstrumentedFuture for F {
+impl<F> IntoInstrumentedFuture for F
+where
+    F: future::Future + Unpin,
+{
     type Future = Self;
     fn into_instrumented_future(self) -> InstrumentedFuture<Self> {
         InstrumentedFuture {
@@ -78,9 +100,42 @@ impl<F: future::Future> IntoInstrumentedFuture for F {
     }
 }
 
-impl<F: future::Future> InstrumentedFuture<F> {
+impl<F> InstrumentedFuture<F>
+where
+    F: future::Future + Unpin,
+{
     /// Queue `guard_fn` to execute when the future is polled, retaining the returned value until
     /// the future completes.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use prometheus_utils::IntoInstrumentedFuture;
+    /// use tokio::time::{sleep, Duration};
+    ///
+    /// /// An RAII guard that will be attached to the future.
+    /// struct FutureGuard;
+    ///
+    /// impl Drop for FutureGuard {
+    ///     fn drop(&mut self) {
+    ///         // This code will be run when the future is ready.
+    ///         println!("100ms have elapsed!");
+    ///     }
+    /// }
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let fut = sleep(Duration::from_millis(100));
+    ///     Box::pin(fut)
+    ///         .into_instrumented_future()
+    ///         .with_guard(|| {
+    ///             // This code will be run once the future is polled.
+    ///             println!("future was polled!");
+    ///             Some(Box::new(FutureGuard))
+    ///         })
+    ///         .await;
+    /// }
+    /// ```
     pub fn with_guard<GuardFn: FnOnce() -> Option<Box<dyn Drop + Send>> + Send + 'static>(
         mut self,
         guard_fn: GuardFn,
@@ -138,7 +193,10 @@ impl<F: future::Future> InstrumentedFuture<F> {
     }
 }
 
-impl<F: future::Future> future::Future for InstrumentedFuture<F> {
+impl<F> future::Future for InstrumentedFuture<F>
+where
+    F: future::Future + Unpin,
+{
     /// An instrumented future returns the same type as its inner future.
     type Output = <F as future::Future>::Output;
     /// Polls the inner future.
@@ -195,7 +253,7 @@ fn counters_increment_only_when_futures_run() {
     let value_lock = work_stoppage.lock().unwrap();
 
     // create a future to do some work, but don't run it yet
-    let f = work(stop_ref)
+    let f = Box::pin(work(stop_ref))
         .into_instrumented_future()
         .with_count(&WORK_COUNTER)
         .with_count_gauge(&WORK_GAUGE);
@@ -203,8 +261,7 @@ fn counters_increment_only_when_futures_run() {
     assert_eq!(WORK_COUNTER.get(), 0);
     assert_eq!(WORK_GAUGE.get(), 0);
 
-    let mut rt = tokio::runtime::Builder::new()
-        .threaded_scheduler()
+    let rt = tokio::runtime::Builder::new_multi_thread()
         .build()
         .expect("can build runtime");
     let handle = rt.spawn(f);
