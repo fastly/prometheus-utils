@@ -1,7 +1,7 @@
 use super::{GuardedGauge, IntCounterWithLabels, Labels};
 use pin_project::pin_project;
 use prometheus::core::{Atomic, GenericCounter};
-use std::{future, ops::Deref, pin::Pin, task};
+use std::{future, marker::Unpin, ops::Deref, pin::Pin, task};
 
 /// An instrumented [`Future`][std-future].
 ///
@@ -19,7 +19,10 @@ use std::{future, ops::Deref, pin::Pin, task};
 /// [std-future]: https://doc.rust-lang.org/std/future/trait.Future.html
 #[pin_project]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct InstrumentedFuture<F: future::Future> {
+pub struct InstrumentedFuture<F>
+where
+    F: future::Future + Unpin,
+{
     /// The inner [`Future`][std-future].
     ///
     /// ## Structural Pinning
@@ -60,14 +63,19 @@ pub struct InstrumentedFuture<F: future::Future> {
 /// Convert a [`Future`][future::Future] into an instrumented future.
 ///
 /// See the [`InstrumentedFuture`] documentation for more information.
+///
+/// Note that a future must be pinned before it can be instrumented.
 pub trait IntoInstrumentedFuture {
     /// The underlying  to be instrumented.
-    type Future: future::Future;
+    type Future: future::Future + Unpin;
     /// Convert this future into an [`InstrumentedFuture`].
     fn into_instrumented_future(self) -> InstrumentedFuture<Self::Future>;
 }
 
-impl<F: future::Future> IntoInstrumentedFuture for F {
+impl<F> IntoInstrumentedFuture for F
+where
+    F: future::Future + Unpin,
+{
     type Future = Self;
     fn into_instrumented_future(self) -> InstrumentedFuture<Self> {
         InstrumentedFuture {
@@ -78,7 +86,10 @@ impl<F: future::Future> IntoInstrumentedFuture for F {
     }
 }
 
-impl<F: future::Future> InstrumentedFuture<F> {
+impl<F> InstrumentedFuture<F>
+where
+    F: future::Future + Unpin,
+{
     /// Queue `guard_fn` to execute when the future is polled, retaining the returned value until
     /// the future completes.
     pub fn with_guard<GuardFn: FnOnce() -> Option<Box<dyn Drop + Send>> + Send + 'static>(
@@ -138,7 +149,10 @@ impl<F: future::Future> InstrumentedFuture<F> {
     }
 }
 
-impl<F: future::Future> future::Future for InstrumentedFuture<F> {
+impl<F> future::Future for InstrumentedFuture<F>
+where
+    F: future::Future + Unpin,
+{
     /// An instrumented future returns the same type as its inner future.
     type Output = <F as future::Future>::Output;
     /// Polls the inner future.
@@ -195,7 +209,7 @@ fn counters_increment_only_when_futures_run() {
     let value_lock = work_stoppage.lock().unwrap();
 
     // create a future to do some work, but don't run it yet
-    let f = work(stop_ref)
+    let f = Box::pin(work(stop_ref))
         .into_instrumented_future()
         .with_count(&WORK_COUNTER)
         .with_count_gauge(&WORK_GAUGE);
