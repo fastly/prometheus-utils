@@ -17,6 +17,20 @@ use std::{future, marker::Unpin, ops::Deref, pin::Pin, task};
 /// [incr-until]: struct.InstrumentedFuture.html#method.increment_until_resolved
 /// [into-fut]: trait.IntoInstrumentedFuture.html#tymethod.into_instrumented_future
 /// [std-future]: https://doc.rust-lang.org/std/future/trait.Future.html
+///
+/// # Examples
+///
+/// ```no_run
+/// use prometheus_utils::IntoInstrumentedFuture;
+/// use tokio::time::{sleep, Duration};
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let fut = sleep(Duration::from_millis(100));
+///     let instrumented = Box::pin(fut).into_instrumented_future();
+///     let _res = instrumented.await;
+/// }
+/// ```
 #[pin_project]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct InstrumentedFuture<F>
@@ -92,6 +106,36 @@ where
 {
     /// Queue `guard_fn` to execute when the future is polled, retaining the returned value until
     /// the future completes.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use prometheus_utils::IntoInstrumentedFuture;
+    /// use tokio::time::{sleep, Duration};
+    ///
+    /// /// An RAII guard that will be attached to the future.
+    /// struct FutureGuard;
+    ///
+    /// impl Drop for FutureGuard {
+    ///     fn drop(&mut self) {
+    ///         // This code will be run when the future is ready.
+    ///         println!("100ms have elapsed!");
+    ///     }
+    /// }
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let fut = sleep(Duration::from_millis(100));
+    ///     Box::pin(fut)
+    ///         .into_instrumented_future()
+    ///         .with_guard(|| {
+    ///             // This code will be run once the future is polled.
+    ///             println!("future was polled!");
+    ///             Some(Box::new(FutureGuard))
+    ///         })
+    ///         .await;
+    /// }
+    /// ```
     pub fn with_guard<GuardFn: FnOnce() -> Option<Box<dyn Drop + Send>> + Send + 'static>(
         mut self,
         guard_fn: GuardFn,
