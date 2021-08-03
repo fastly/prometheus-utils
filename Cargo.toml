@@ -2,9 +2,10 @@
 authors = ["Fastly"]
 edition = "2018"
 name = "prometheus-utils"
-version = "0.5.0"
+version = "0.5.1"
 license = "Apache-2.0 WITH LLVM-exception"
 description = "Utilities built on top of the prometheus crate"
+repository = "https://github.com/fastly/prometheus-utils"
 
 [dependencies]
 lazy_static = "^1.4.0"
