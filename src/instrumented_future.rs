@@ -1,7 +1,7 @@
 use super::{GuardedGauge, IntCounterWithLabels, Labels};
 use pin_project::pin_project;
 use prometheus::core::{Atomic, GenericCounter};
-use std::{future, marker::Unpin, ops::Deref, pin::Pin, task};
+use std::{future, ops::Deref, pin::Pin, task};
 
 /// An instrumented [`Future`][std-future].
 ///
@@ -27,16 +27,13 @@ use std::{future, marker::Unpin, ops::Deref, pin::Pin, task};
 /// #[tokio::main]
 /// async fn main() {
 ///     let fut = sleep(Duration::from_millis(100));
-///     let instrumented = Box::pin(fut).into_instrumented_future();
+///     let instrumented = fut.into_instrumented_future();
 ///     let _res = instrumented.await;
 /// }
 /// ```
 #[pin_project]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct InstrumentedFuture<F>
-where
-    F: future::Future + Unpin,
-{
+pub struct InstrumentedFuture<F: future::Future> {
     /// The inner [`Future`][std-future].
     ///
     /// ## Structural Pinning
@@ -77,19 +74,14 @@ where
 /// Convert a [`Future`][future::Future] into an instrumented future.
 ///
 /// See the [`InstrumentedFuture`] documentation for more information.
-///
-/// Note that a future must be pinned before it can be instrumented.
 pub trait IntoInstrumentedFuture {
     /// The underlying  to be instrumented.
-    type Future: future::Future + Unpin;
+    type Future: future::Future;
     /// Convert this future into an [`InstrumentedFuture`].
     fn into_instrumented_future(self) -> InstrumentedFuture<Self::Future>;
 }
 
-impl<F> IntoInstrumentedFuture for F
-where
-    F: future::Future + Unpin,
-{
+impl<F: future::Future> IntoInstrumentedFuture for F {
     type Future = Self;
     fn into_instrumented_future(self) -> InstrumentedFuture<Self> {
         InstrumentedFuture {
@@ -100,10 +92,7 @@ where
     }
 }
 
-impl<F> InstrumentedFuture<F>
-where
-    F: future::Future + Unpin,
-{
+impl<F: future::Future> InstrumentedFuture<F> {
     /// Queue `guard_fn` to execute when the future is polled, retaining the returned value until
     /// the future completes.
     ///
@@ -123,10 +112,14 @@ where
     ///     }
     /// }
     ///
+    /// /// An asynchronous function.
+    /// async fn do_work() {
+    ///     sleep(Duration::from_millis(100)).await;
+    /// }
+    ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let fut = sleep(Duration::from_millis(100));
-    ///     Box::pin(fut)
+    ///     do_work()
     ///         .into_instrumented_future()
     ///         .with_guard(|| {
     ///             // This code will be run once the future is polled.
@@ -193,10 +186,7 @@ where
     }
 }
 
-impl<F> future::Future for InstrumentedFuture<F>
-where
-    F: future::Future + Unpin,
-{
+impl<F: future::Future> future::Future for InstrumentedFuture<F> {
     /// An instrumented future returns the same type as its inner future.
     type Output = <F as future::Future>::Output;
     /// Polls the inner future.
@@ -253,7 +243,7 @@ fn counters_increment_only_when_futures_run() {
     let value_lock = work_stoppage.lock().unwrap();
 
     // create a future to do some work, but don't run it yet
-    let f = Box::pin(work(stop_ref))
+    let f = work(stop_ref)
         .into_instrumented_future()
         .with_count(&WORK_COUNTER)
         .with_count_gauge(&WORK_GAUGE);
