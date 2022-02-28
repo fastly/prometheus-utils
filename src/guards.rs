@@ -60,7 +60,7 @@ impl<P: Atomic + 'static> GuardedGauge<P> for GenericGauge<P> {
 ///
 /// Created by calling [`IntCounterWithLabels::deferred_inc`].
 pub struct DeferredAddWithLabels<'a, L: Labels> {
-    value: u64,
+    value: Option<u64>,
     metric: &'a IntCounterWithLabels<L>,
     labels: L,
 }
@@ -68,7 +68,9 @@ pub struct DeferredAddWithLabels<'a, L: Labels> {
 /// When dropped, a [`DeferredAddWithLabels`] guard will increment its counter.
 impl<'a, L: Labels> Drop for DeferredAddWithLabels<'a, L> {
     fn drop(&mut self) {
-        self.metric.add(self.value, &self.labels)
+        if let Some(value) = self.value {
+            self.metric.add(value, &self.labels)
+        }
     }
 }
 
@@ -79,7 +81,7 @@ impl<'a, L: Labels> DeferredAddWithLabels<'a, L> {
     // `deferred_inc`.
     pub(crate) fn new(metric: &'a IntCounterWithLabels<L>, value: u64, labels: L) -> Self {
         Self {
-            value,
+            value: Some(value),
             metric,
             labels,
         }
@@ -95,13 +97,18 @@ impl<'a, L: Labels> DeferredAddWithLabels<'a, L> {
     pub fn complete_add(self) {
         drop(self)
     }
+
+    /// Cancel the increment, consuming the guard.
+    pub fn cancel(&mut self) {
+        self.value = None;
+    }
 }
 
 /// A guard that will automatically increment a [`GenericCounter`] when dropped.
 ///
 /// Created by the methods on the [`DeferredCounter`] extension trait.
 pub struct DeferredAdd<'a, P: Atomic> {
-    value: P::T,
+    value: Option<P::T>,
     metric: &'a GenericCounter<P>,
 }
 
@@ -110,12 +117,19 @@ impl<'a, P: Atomic> DeferredAdd<'a, P> {
     pub fn complete_add(self) {
         drop(self)
     }
+
+    /// Cancel the increment, consuming the guard.
+    pub fn cancel(&mut self) {
+        self.value = None;
+    }
 }
 
 /// When dropped, a [`DeferredAdd`] guard will increment its counter.
 impl<'a, P: Atomic> Drop for DeferredAdd<'a, P> {
     fn drop(&mut self) {
-        self.metric.inc_by(self.value);
+        if let Some(value) = self.value {
+            self.metric.inc_by(value);
+        }
     }
 }
 
@@ -136,7 +150,7 @@ pub trait DeferredCounter<P: Atomic + 'static> {
 impl<P: Atomic + 'static> DeferredCounter<P> for GenericCounter<P> {
     fn deferred_add(&'static self, v: P::T) -> DeferredAdd<P> {
         DeferredAdd {
-            value: v,
+            value: Some(v),
             metric: self,
         }
     }
