@@ -1,3 +1,11 @@
+//! Utilities for instrumenting asynchronous code.
+//
+//  `dyn_drop` is explicitly allowed in this module. As this lint indicates, `Drop` bounds are not
+//  a proper heuristic for checking that a type can be trivially dropped. In our case, an
+//  instrumented future is responsible for dealing with resource guards whose primary functionality
+//  /is/ their drop implementations.
+#![allow(dyn_drop)]
+
 use super::{GuardedGauge, IntCounterWithLabels, Labels};
 use pin_project::pin_project;
 use prometheus::core::{Atomic, GenericCounter};
