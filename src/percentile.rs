@@ -70,7 +70,7 @@ const WINDOW_SIZE: usize = 4096;
 struct ObservationSet<T: Ord + Zero + Copy> {
     idx: usize,
     wraps: usize,
-    data: [T; WINDOW_SIZE],
+    data: Box<[T]>,
 }
 
 impl<T: Ord + Zero + Copy> ObservationSet<T> {
@@ -78,7 +78,8 @@ impl<T: Ord + Zero + Copy> ObservationSet<T> {
         Self {
             idx: 0,
             wraps: 0,
-            data: [T::zero(); WINDOW_SIZE],
+            // Construct in a manner that doesnt use stack space - Box::new([0; WINDOW_SIZE]) would
+            data: vec![T::zero(); WINDOW_SIZE].into_boxed_slice(),
         }
     }
 
