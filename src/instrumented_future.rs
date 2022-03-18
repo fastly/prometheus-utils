@@ -9,7 +9,7 @@
 use super::{GuardedGauge, IntCounterWithLabels, Labels};
 use pin_project::pin_project;
 use prometheus::core::{Atomic, GenericCounter};
-use std::{future, ops::Deref, pin::Pin, task};
+use std::{any::Any, future, ops::Deref, pin::Pin, task};
 
 /// An instrumented [`Future`][std-future].
 ///
@@ -64,7 +64,7 @@ pub struct InstrumentedFuture<F: future::Future> {
     ///
     /// In practice, this holds a list of Prometheus counters or gauges to increment when the inner
     /// `Future` starts, returning a list of guards to decrement once the inner `Future` completes.
-    pre_polls: Vec<Box<dyn FnOnce() -> Option<Box<dyn Drop + Send>> + Send>>,
+    pre_polls: Vec<Box<dyn FnOnce() -> Option<Box<dyn Any + Send>> + Send>>,
     /// RAII guards that will be dropped once the future has resolved.
     ///
     /// In practice, this is used to hold values like [`IntGaugeGuard`][int-guard] and
@@ -76,7 +76,8 @@ pub struct InstrumentedFuture<F: future::Future> {
     /// [float-guard]: type.GaugeGuard.html
     /// [int-guard]: type.IntGaugeGuard.html
     /// [inc-until]: struct.InstrumentedFuture.html#method.increment_until_resolved
-    resource_guards: Vec<Box<dyn Drop + Send>>,
+    #[allow(dyn_drop)]
+    resource_guards: Vec<Box<dyn Any + Send>>,
 }
 
 /// Convert a [`Future`][future::Future] into an instrumented future.
@@ -137,7 +138,7 @@ impl<F: future::Future> InstrumentedFuture<F> {
     ///         .await;
     /// }
     /// ```
-    pub fn with_guard<GuardFn: FnOnce() -> Option<Box<dyn Drop + Send>> + Send + 'static>(
+    pub fn with_guard<GuardFn: FnOnce() -> Option<Box<dyn Any + Send>> + Send + 'static>(
         mut self,
         guard_fn: GuardFn,
     ) -> Self {
