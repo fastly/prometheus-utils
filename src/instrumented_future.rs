@@ -1,7 +1,7 @@
 use super::{GuardedGauge, IntCounterWithLabels, Labels};
 use pin_project::pin_project;
 use prometheus::core::{Atomic, GenericCounter};
-use std::{future, ops::Deref, pin::Pin, task, any::Any};
+use std::{any::Any, future, ops::Deref, pin::Pin, task};
 
 /// An instrumented [`Future`][std-future].
 ///
