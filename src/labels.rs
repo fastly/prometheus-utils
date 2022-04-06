@@ -142,4 +142,28 @@ impl<L: Labels> IntGaugeWithLabels<L> {
             .with_label_values(&labels.label_values())
             .set(value);
     }
+
+    /// Add `value` to the gauge with the provided `labels`.
+    pub fn add(&self, labels: &L, value: i64) {
+        self.metric
+            .with_label_values(&labels.label_values())
+            .add(value);
+    }
+
+    /// Subtract `value` from the gauge with the provided `labels`.
+    pub fn sub(&self, labels: &L, value: i64) {
+        self.metric
+            .with_label_values(&labels.label_values())
+            .sub(value);
+    }
+
+    /// Increment the gauge by `1`, using the provided `labels` for the event.
+    pub fn inc(&self, labels: &L) {
+        self.metric.with_label_values(&labels.label_values()).inc();
+    }
+
+    /// Decrement the gauge by `1`, using the provided `labels` for the event.
+    pub fn dec(&self, labels: &L) {
+        self.metric.with_label_values(&labels.label_values()).dec();
+    }
 }
