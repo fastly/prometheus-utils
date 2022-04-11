@@ -93,6 +93,16 @@ impl<'a, L: Labels> DeferredAddWithLabels<'a, L> {
         self
     }
 
+    /// Reference to the labels that will be used when incrementing the metric.
+    pub fn labels(&self) -> &L {
+        &self.labels
+    }
+
+    /// Mutable reference to the labels that will be used when incrementing the metric.
+    pub fn labels_mut(&mut self) -> &mut L {
+        &mut self.labels
+    }
+
     /// Eagerly perform the increment, consuming the guard.
     pub fn complete_add(self) {
         drop(self)
