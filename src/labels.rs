@@ -1,5 +1,8 @@
 use crate::guards::DeferredAddWithLabels;
-use prometheus::{register_int_counter_vec, register_int_gauge_vec, IntCounterVec, IntGaugeVec};
+use prometheus::{
+    register_histogram_vec, register_int_counter_vec, register_int_gauge_vec, HistogramTimer,
+    HistogramVec, IntCounterVec, IntGaugeVec,
+};
 use std::marker::PhantomData;
 
 /// A sequence of values for Prometheus labels
@@ -165,5 +168,84 @@ impl<L: Labels> IntGaugeWithLabels<L> {
     /// Decrement the gauge by `1`, using the provided `labels` for the event.
     pub fn dec(&self, labels: &L) {
         self.metric.with_label_values(&labels.label_values()).dec();
+    }
+}
+
+/// A Prometheus histogram metric, with labels described by the type `L`.
+///
+/// The type `L` must implement the [`Labels`] trait; see the documentation for that trait
+/// for an overview of Prometheus metric labels.
+///
+/// [`Labels`]: trait.Labels.html
+pub struct HistogramWithLabels<L: Labels> {
+    metric: HistogramVec,
+    _labels: PhantomData<L>,
+}
+
+impl<L: Labels> HistogramWithLabels<L> {
+    /// Construct and immediately register a new `HistogramWithLabels` instance.
+    pub fn register_new(name: &str, help: &str) -> Self {
+        let metric = register_histogram_vec!(name, help, &L::label_names()).unwrap();
+
+        // Note: for histograms, like gauges, we don't need to -- and should not! -- prepopulate
+        // the metric with the possible labels.
+
+        Self {
+            metric,
+            _labels: PhantomData,
+        }
+    }
+
+    /// Construct and immediately register a new `HistogramWithLabels` instance.
+    ///
+    /// This will use the provided `buckets` when registering the underlying [`HistogramVec`].
+    pub fn register_new_with_buckets(name: &str, help: &str, buckets: Vec<f64>) -> Self {
+        let metric = register_histogram_vec!(name, help, &L::label_names(), buckets).unwrap();
+
+        // Note: for histograms, like gauges, we don't need to -- and should not! -- prepopulate
+        // the metric with the possible labels.
+
+        Self {
+            metric,
+            _labels: PhantomData,
+        }
+    }
+
+    /// Add a single observation to the histogram with the provided `labels`.
+    pub fn observe(&self, labels: &L, value: f64) {
+        self.metric
+            .with_label_values(&labels.label_values())
+            .observe(value);
+    }
+
+    /// Return a [`HistogramTimer`] to track a duration, using the provided `labels`.
+    pub fn start_timer(&self, labels: &L) -> HistogramTimer {
+        self.metric
+            .with_label_values(&labels.label_values())
+            .start_timer()
+    }
+
+    /// Observe execution time of a closure, in seconds.
+    pub fn observe_closure_duration<F, T>(&self, labels: &L, f: F) -> T
+    where
+        F: FnOnce() -> T,
+    {
+        self.metric
+            .with_label_values(&labels.label_values())
+            .observe_closure_duration(f)
+    }
+
+    /// Return accumulated sum of all samples, using the provided `labels`.
+    pub fn get_sample_sum(&self, labels: &L) -> f64 {
+        self.metric
+            .with_label_values(&labels.label_values())
+            .get_sample_sum()
+    }
+
+    /// Return count of all samples, using the provided `labels`.
+    pub fn get_sample_count(&self, labels: &L) -> u64 {
+        self.metric
+            .with_label_values(&labels.label_values())
+            .get_sample_count()
     }
 }
