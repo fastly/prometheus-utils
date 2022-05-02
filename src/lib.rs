@@ -32,7 +32,9 @@ pub use guards::{
     GuardedGauge, IntGaugeGuard,
 };
 pub use instrumented_future::{InstrumentedFuture, IntoInstrumentedFuture};
-pub use labels::{IntCounterWithLabels, IntGaugeWithLabels, LabelValues, Labels};
+pub use labels::{
+    HistogramWithLabels, IntCounterWithLabels, IntGaugeWithLabels, LabelValues, Labels,
+};
 pub use percentile::{Observations, Sample, TimingBucket, Windowing};
 
 #[allow(missing_docs)]
