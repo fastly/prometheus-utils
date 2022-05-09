@@ -63,9 +63,9 @@ impl<P: Default> Windowing<P> {
 
 /// Since this is a constant shared for all ObservationSet, it currently must be tuned for the
 /// busiest stat so as to not drop samples. An appropriate value for `WINDOW_SIZE` must be decided
-/// in conjunction with the window sampling rate - currently at 5 seconds, this means the busiest
-/// `ObservationSet` can handle ~800 (4096 / 5) events per second.
-const WINDOW_SIZE: usize = 4096;
+/// in conjunction with the window sampling rate - currently at 15 seconds, this means the busiest
+/// `ObservationSet` can handle ~4369 (65536 / 15) events per second.
+const WINDOW_SIZE: usize = 65536;
 
 struct ObservationSet<T: Ord + Zero + Copy> {
     idx: usize,
