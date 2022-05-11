@@ -63,9 +63,9 @@ impl<P: Default> Windowing<P> {
 
 /// Since this is a constant shared for all ObservationSet, it currently must be tuned for the
 /// busiest stat so as to not drop samples. An appropriate value for `WINDOW_SIZE` must be decided
-/// in conjunction with the window sampling rate - currently at 5 seconds, this means the busiest
-/// `ObservationSet` can handle ~800 (4096 / 5) events per second.
-const WINDOW_SIZE: usize = 4096;
+/// in conjunction with the window sampling rate - currently at 15 seconds, this means the busiest
+/// `ObservationSet` can handle ~4369 (65536 / 15) events per second.
+const WINDOW_SIZE: usize = 65536;
 
 struct ObservationSet<T: Ord + Zero + Copy> {
     idx: usize,
@@ -133,6 +133,8 @@ pub struct Sample<T: Ord + Zero + Copy> {
     pub dropped: usize,
     /// Number of times the observation window wrapped around
     pub wraps: usize,
+    /// 25th percentile observation
+    pub p25: T,
     /// 50th percentile observation
     pub p50: T,
     /// 75th percentile observation
@@ -145,10 +147,10 @@ pub struct Sample<T: Ord + Zero + Copy> {
     pub p99: T,
     /// 99.9th percentile observation
     pub p99p9: T,
-    /// 99.995th percentile observation
-    pub p99p995: T,
     /// Maximum observation
     pub max: T,
+    /// Number of observations
+    pub count: usize,
 }
 
 /// Collect observations, which are sampled as a [`Sample`].
@@ -189,14 +191,15 @@ impl<T: Ord + Zero + Copy> Observations<T> {
                 sorted_ts[percentile_idx]
             }
         }
+        let p25 = percentile(&sorted, 25.0);
         let p50 = percentile(&sorted, 50.0);
         let p75 = percentile(&sorted, 75.0);
         let p90 = percentile(&sorted, 90.0);
         let p95 = percentile(&sorted, 95.0);
         let p99 = percentile(&sorted, 99.0);
         let p99p9 = percentile(&sorted, 99.9);
-        let p99p995 = percentile(&sorted, 99.995);
         let max = sorted.last().map(|x| *x).unwrap_or_else(|| T::zero());
+        let count = sorted.len();
         observations.clear();
         std::mem::drop(observations);
 
@@ -206,14 +209,15 @@ impl<T: Ord + Zero + Copy> Observations<T> {
         Sample {
             dropped,
             wraps,
+            p25,
             p50,
             p75,
             p90,
             p95,
             p99,
             p99p9,
-            p99p995,
             max,
+            count,
         }
     }
 
@@ -231,8 +235,10 @@ impl<T: Ord + Zero + Copy> Observations<T> {
 }
 
 crate::label_enum! {
-/// Labels corresponding to the fields in [`Sample`]
+    /// Labels corresponding to the fields in [`Sample`]
     pub enum TimingBucket {
+        /// 25th percentile observation
+        P25,
         /// 50th percentile observation
         P50,
         /// 75th percentile observation
@@ -245,14 +251,10 @@ crate::label_enum! {
         P99,
         /// 99.9th percentile observation
         P99P9,
-        /// 99.995th percentile observation
-        P99P995,
         /// Maximum observation
         Max,
-        /// Number of observations dropped due to lock contention
-        Dropped,
-        /// Number of times the observation window wrapped around
-        Wrapped,
+        /// Number of observations
+        Count,
     }
 }
 
@@ -276,17 +278,28 @@ impl<T: Ord + Zero + Copy + Into<i64>> Sample<T> {
     /// label.  Each percentile is given as an i64.
     pub fn as_bucket_pairs(&self) -> Vec<(TimingBucket, i64)> {
         vec![
+            (TimingBucket::P25, self.p25.into()),
             (TimingBucket::P50, self.p50.into()),
             (TimingBucket::P75, self.p75.into()),
             (TimingBucket::P90, self.p90.into()),
             (TimingBucket::P95, self.p95.into()),
             (TimingBucket::P99, self.p99.into()),
             (TimingBucket::P99P9, self.p99p9.into()),
-            (TimingBucket::P99P995, self.p99p995.into()),
             (TimingBucket::Max, self.max.into()),
-            (TimingBucket::Dropped, self.dropped as i64),
-            (TimingBucket::Wrapped, self.wraps as i64),
+            (TimingBucket::Count, self.count as i64),
         ]
+    }
+
+    /// Returns the number of observations dropped due to the observation lock
+    /// being held.
+    pub fn dropped(&self) -> usize {
+        self.dropped
+    }
+
+    /// Returns the number of times the observation count exceeded the available
+    /// window size.
+    pub fn wraps(&self) -> usize {
+        self.wraps
     }
 }
 
@@ -324,14 +337,15 @@ mod tests {
             Sample {
                 dropped: 0,
                 wraps: 0,
+                p25: 0,
                 p50: 0,
                 p75: 0,
                 p90: 0,
                 p95: 0,
                 p99: 0,
                 p99p9: 0,
-                p99p995: 0,
                 max: 0,
+                count: 0,
             }
         );
     }
@@ -365,14 +379,15 @@ mod tests {
             Sample {
                 dropped: 0,
                 wraps: 0,
+                p25: 25,
                 p50: 50,
                 p75: 75,
                 p90: 90,
                 p95: 95,
                 p99: 99,
                 p99p9: 99,
-                p99p995: 99,
                 max: 99,
+                count: 99,
             }
         );
     }
@@ -394,14 +409,15 @@ mod tests {
             Sample {
                 dropped: 0,
                 wraps: 0,
+                p25: 501,
                 p50: 502,
                 p75: 503,
                 p90: 504,
                 p95: 504,
                 p99: 504,
                 p99p9: 504,
-                p99p995: 504,
                 max: 504,
+                count: 5,
             }
         );
     }
@@ -430,14 +446,15 @@ mod tests {
             Sample {
                 dropped: 0,
                 wraps: 1,
+                p25: 2,
                 p50: 2,
                 p75: 2,
                 p90: 3,
                 p95: 3,
                 p99: 3,
                 p99p9: 3,
-                p99p995: 3,
                 max: 3,
+                count: WINDOW_SIZE / 2 + WINDOW_SIZE / 10,
             }
         );
     }
