@@ -2,7 +2,7 @@
 authors = ["Fastly"]
 edition = "2018"
 name = "prometheus-utils"
-version = "0.6.2"
+version = "0.6.3"
 license = "Apache-2.0 WITH LLVM-exception"
 description = "Utilities built on top of the prometheus crate"
 repository = "https://github.com/fastly/prometheus-utils"
